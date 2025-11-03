@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 from pymongo import MongoClient
 
+
 dotenv_path = Path(__file__).resolve().parent / ".env"
 load_dotenv(dotenv_path)
 
@@ -49,3 +50,11 @@ print(f"  - Database: {DATABASE_NAME}")
 print(f"  - JWT Algorithm: {JWT_ALGORITHM}")
 print(f"  - Token Expiry: {ACCESS_TOKEN_EXPIRE_MINUTES} minutes")
 print(f"  - Allowed Origins: {ALLOWED_ORIGINS}")
+# Allowed file extensions for uploads
+ALLOWED_FILE_EXTENSIONS = {".pdf", ".doc", ".docx", ".txt", ".png", ".jpg", ".jpeg"}
+
+# Maximum allowed upload file size in bytes (e.g., 10 MB)
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+
+# Root directory path to store uploaded files (adjust as per your fs structure)
+UPLOAD_ROOT_DIR = "/app/backend/uploads"

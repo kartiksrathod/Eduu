@@ -33,16 +33,25 @@ import {
   Trash2,
   Eye,
   Settings,
-  Bookmark,
+  Bookmark, 
   Trophy,
   CheckCircle
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 
+
 const ProfileDashboard = () => {
   const { currentUser, isAdmin, updateUser } = useAuth();
   const { toast } = useToast();
-  
+  if (!currentUser) {
+    return <div>Loading...</div>;
+  }
+
+  const API_BASE_URL = "http://localhost:8001";
+
+  const photoUrl = currentUser?.profile_photo
+    ? `${API_BASE_URL}${currentUser.profile_photo}`
+    : null;
   // State for tabs
   const [activeTab, setActiveTab] = useState('overview');
   
@@ -136,22 +145,19 @@ const ProfileDashboard = () => {
       setLoading(false);
     }
   };
+const fetchBookmarks = async () => {
+  setIsLoadingBookmarks(true);
+  try {
+    const response = await bookmarksAPI.getAll();
+    // Make sure response.data.data is an array before setting
+    setBookmarks(Array.isArray(response.data.data) ? response.data.data : []);
+  } catch (error) {
+    toast({ title: "Error", description: "Failed to load bookmarks", variant: "destructive" });
+  } finally {
+    setIsLoadingBookmarks(false);
+  }
+};
 
-  const fetchBookmarks = async () => {
-    setIsLoadingBookmarks(true);
-    try {
-      const response = await bookmarksAPI.getAll();
-      setBookmarks(response.data);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load bookmarks",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoadingBookmarks(false);
-    }
-  };
 
   const fetchAchievements = async () => {
     setIsLoadingAchievements(true);
@@ -208,36 +214,35 @@ const ProfileDashboard = () => {
   };
 
   const handlePhotoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const file = e.target.files[0];
+  if (!file) return;
 
-    try {
-      const response = await profileAPI.uploadPhoto(file);
-      
-      // Update user context with new photo path
-      const updatedUser = {
-        ...currentUser,
-        profile_photo: response.data.file_path
-      };
-      updateUser(updatedUser);
-      
-      toast({
-        title: "Success",
-        description: "Profile photo updated successfully! Check the navbar to see your new photo."
-      });
-      
-      // Reload page to refresh all components
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-    } catch (error) {
-      toast({
-        title: "Error", 
-        description: "Failed to upload photo",
-        variant: "destructive"
-      });
+  try {
+    const response = await profileAPI.uploadPhoto(file);
+
+    // If backend returns the updated "profile"
+    if (response.data && response.data.profile) {
+      updateUser(response.data.profile);
+    } else {
+      // Fallback: fetch fresh profile from API if the "profile" key is missing
+      const freshProfile = await profileAPI.get();
+      updateUser(freshProfile.data.data);
     }
-  };
+
+    toast({
+      title: "Success",
+      description: "Profile photo updated successfully! Check the navbar to see your new photo.",
+    });
+    // No page reload required
+  } catch (error) {
+    toast({
+      title: "Error", 
+      description: "Failed to upload photo",
+      variant: "destructive"
+    });
+  }
+};
+
 
   const handlePhotoRemove = async () => {
     if (!window.confirm('Are you sure you want to remove your profile photo?')) return;
@@ -502,7 +507,7 @@ const ProfileDashboard = () => {
             <div className="relative">
               <Avatar className="w-20 h-20" data-testid="profile-avatar">
                 <AvatarImage 
-                  src={currentUser?.profile_photo ? profileAPI.getPhoto(currentUser.id) : ''} 
+                   src={currentUser?.profilephoto ? `${API_BASE_URL}${currentUser.profilephoto}` : undefined} 
                   alt={currentUser?.name} 
                 />
                 <AvatarFallback className="bg-blue-600 text-white text-2xl">
@@ -645,10 +650,11 @@ const ProfileDashboard = () => {
                 <CardContent className="space-y-4">
                   <div className="flex items-center gap-4">
                     <Avatar className="w-16 h-16">
-                      <AvatarImage 
-                        src={currentUser?.profile_photo ? profileAPI.getPhoto(currentUser.id) : ''} 
-                        alt={currentUser?.name} 
-                      />
+                     <AvatarImage 
+                          src={photoUrl}
+                          alt={currentUser?.name}
+                    />
+
                       <AvatarFallback className="bg-blue-600 text-white text-xl">
                         {currentUser?.name?.charAt(0)?.toUpperCase()}
                       </AvatarFallback>
@@ -886,7 +892,7 @@ const ProfileDashboard = () => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredBookmarks.map((bookmark) => (
+                    {(filteredBookmarks || []).map((bookmark) => (
                       <Card key={bookmark.id} className="hover:shadow-md transition-all duration-300 hover:-translate-y-1 dark:bg-gray-700 dark:border-gray-600" data-testid="bookmark-card">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between mb-3">

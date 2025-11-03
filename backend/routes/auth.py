@@ -157,7 +157,6 @@ async def verify_email(token: str):
     """
     logger.info(f"User verified and created: {email}")
     return HTMLResponse(content=html, status_code=200)
-
 @router.post("/login")
 async def login_user(data: LoginModel):
     if db is None:
@@ -169,9 +168,11 @@ async def login_user(data: LoginModel):
         raise HTTPException(status_code=403, detail="Please verify your email before logging in")
     if not pwd_context.verify(data.password, user.get("password", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
     is_admin = bool(user.get("is_admin", False) or user.get("role") == "admin")
     payload = {"sub": user["email"], "role": user.get("role", "student"), "is_admin": is_admin}
     token = create_access_token(payload, expires_minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+
     user_response = {
         "name": user.get("name"),
         "email": user.get("email"),
@@ -181,8 +182,12 @@ async def login_user(data: LoginModel):
         "is_admin": is_admin,
         "role": user.get("role", "student"),
     }
+
     logger.info(f"User logged in: {data.email}")
+
+    # IMPORTANT: Return access_token and user in flat structure, not nested in data
     return {"access_token": token, "token_type": "bearer", "user": user_response}
+
 
 @router.post("/resend-verification")
 async def resend_verification(

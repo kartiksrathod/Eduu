@@ -6,10 +6,12 @@ from config import JWT_SECRET_KEY, JWT_ALGORITHM
 logger = logging.getLogger(__name__)
 
 def verify_admin(request: Request):
-    token = request.cookies.get("token")
-    if not token:
-        logger.warning("Admin verification failed: Missing token cookie")
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        logger.warning("Admin verification failed: Missing Authorization header")
         raise HTTPException(status_code=401, detail="Missing authentication token")
+    
+    token = auth_header.split(" ")[1]
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         if not payload.get("is_admin"):
@@ -21,9 +23,11 @@ def verify_admin(request: Request):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 def verify_token(request: Request):
-    token = request.cookies.get("token")
-    if not token:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing authentication token")
+
+    token = auth_header.split(" ")[1]
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         return payload

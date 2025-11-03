@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Body, Request
 from jose import jwt, JWTError
-from config import JWT_SECRET_KEY, JWT_ALGORITHM
-from config import db
+from config import JWT_SECRET_KEY, JWT_ALGORITHM, db
 from datetime import datetime
 import uuid
 from typing import Optional
@@ -11,12 +10,11 @@ router = APIRouter(prefix="/api/admin", tags=["Admin"])
 def get_current_user(request: Request):
     token = None
 
-    # Read token from cookie or Authorization header
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
     if not token:
-        token = request.cookies.get("token")  # Use "token" cookie
+        token = request.cookies.get("token")
 
     if not token:
         raise HTTPException(status_code=401, detail="Missing authentication token")
@@ -35,8 +33,14 @@ def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 def is_admin_user(user: dict):
-    # Standardize to check only is_admin field here
     return bool(user.get("is_admin", False))
+
+def serialize_doc(doc):
+    doc["id"] = str(doc.pop("_id"))
+    for key in ("created_at", "updated_at", "verified_at"):
+        if key in doc and isinstance(doc[key], datetime):
+            doc[key] = doc[key].isoformat()
+    return doc
 
 # Admin Dashboard
 @router.get("/dashboard")
@@ -72,14 +76,15 @@ async def add_notes(current_user=Depends(get_current_user), data: dict = Body(..
         "created_at": datetime.utcnow()
     }
     db.notes.insert_one(note)
-    return {"message": "Note added successfully", "note": note}
+    return {"message": "Note added successfully", "note": serialize_doc(note.copy())}
 
 @router.get("/notes")
 async def list_notes(skip: int = 0, limit: int = 50, current_user=Depends(get_current_user)):
     if not is_admin_user(current_user):
         raise HTTPException(status_code=403, detail="Admins only")
     cursor = db.notes.find().sort("created_at", -1).skip(skip).limit(limit)
-    return {"notes": list(cursor)}
+    notes = [serialize_doc(note) for note in cursor]
+    return {"notes": notes}
 
 @router.put("/notes/{note_id}")
 async def update_note(note_id: str, data: dict = Body(...), current_user=Depends(get_current_user)):
@@ -120,7 +125,7 @@ async def add_syllabus(current_user=Depends(get_current_user), data: dict = Body
         "created_at": datetime.utcnow()
     }
     db.syllabus.insert_one(syllabus)
-    return {"message": "Syllabus added successfully", "syllabus": syllabus}
+    return {"message": "Syllabus added successfully", "syllabus": serialize_doc(syllabus.copy())}
 
 @router.get("/syllabus")
 async def list_syllabus(course: Optional[str] = None, current_user=Depends(get_current_user)):
@@ -130,7 +135,8 @@ async def list_syllabus(course: Optional[str] = None, current_user=Depends(get_c
     if course:
         query["course"] = course
     docs = list(db.syllabus.find(query).sort("created_at", -1))
-    return {"syllabus": docs}
+    syllabus = [serialize_doc(doc) for doc in docs]
+    return {"syllabus": syllabus}
 
 @router.put("/syllabus/{sid}")
 async def update_syllabus(sid: str, data: dict = Body(...), current_user=Depends(get_current_user)):
@@ -170,14 +176,15 @@ async def add_paper(current_user=Depends(get_current_user), data: dict = Body(..
         "created_at": datetime.utcnow()
     }
     db.papers.insert_one(paper)
-    return {"message": "Paper added successfully", "paper": paper}
+    return {"message": "Paper added successfully", "paper": serialize_doc(paper.copy())}
 
 @router.get("/papers")
 async def list_papers(skip: int = 0, limit: int = 50, current_user=Depends(get_current_user)):
     if not is_admin_user(current_user):
         raise HTTPException(status_code=403, detail="Admins only")
     docs = list(db.papers.find().sort("created_at", -1).skip(skip).limit(limit))
-    return {"papers": docs}
+    papers = [serialize_doc(doc) for doc in docs]
+    return {"papers": papers}
 
 @router.put("/papers/{pid}")
 async def update_paper(pid: str, data: dict = Body(...), current_user=Depends(get_current_user)):

@@ -6,12 +6,14 @@ dotenv_path = Path(__file__).resolve().parent / ".env"
 print(f"Loading .env from: {dotenv_path}")
 load_dotenv(dotenv_path)
 
+
 import uuid
 import logging
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from pydantic import BaseModel, EmailStr
@@ -29,6 +31,10 @@ from config import (
 LOG_DIR = os.path.join(os.getcwd(), "app_logging", "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
+# Make sure uploads directory exists
+UPLOADS_DIR = os.path.join(os.getcwd(), "uploads")
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -37,6 +43,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
 logger = logging.getLogger(__name__)
 logger.info("Logging initialized")
 
@@ -58,8 +65,13 @@ def verify_token(token: str):
 app = FastAPI(
     title="EduResources API",
     description="Academic Resources Management System",
-    version="1.0.0"
+    version="1.0.0",
+    redirect_slashes=True  # Enable automatic trailing slash redirect
 )
+from routes import auth_routes
+
+app.include_router(auth_routes.router)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -68,6 +80,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount uploads directory for static files serving
+app.mount("/uploads", StaticFiles(directory=os.path.join(os.getcwd(), "uploads")), name="uploads")
+
+
 
 class UserRegister(BaseModel):
     name: str
@@ -126,13 +143,11 @@ async def login(user: UserLogin):
             raise HTTPException(status_code=401, detail="Invalid credentials")
         is_admin = existing_user.get("is_admin", False)
         token = create_access_token({"sub": user.email, "is_admin": is_admin})
-
         logger.info(f"User logged in: {user.email} | Admin: {is_admin}")
-
-        # IMPORTANT: Return the response object on which you set_cookie
         response = JSONResponse(
             {
-                "message": "Login successful",
+                "access_token": token,
+                "token_type": "bearer",
                 "user": {
                     "name": existing_user["name"],
                     "email": existing_user["email"],
@@ -147,7 +162,7 @@ async def login(user: UserLogin):
             key="token",
             value=token,
             httponly=True,
-            secure=False,  # False in development; True in production with HTTPS
+            secure=False,
             samesite="lax",
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             expires=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
@@ -160,24 +175,6 @@ async def login(user: UserLogin):
         logger.error(f"Login error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/auth/profile", tags=["Authentication"])
-async def profile(request: Request):
-    try:
-        token = request.cookies.get("token")
-        if not token:
-            raise HTTPException(status_code=401, detail="Token missing or invalid")
-        payload = verify_token(token)
-        email = payload.get("sub")
-        user = db.users.find_one({"email": email}, {"password": 0})
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-        return user
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Profile fetch error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
 def auto_include_routers(app):
     try:
         import routes
@@ -185,7 +182,7 @@ def auto_include_routers(app):
             try:
                 module = importlib.import_module(f"routes.{module_name}")
                 if hasattr(module, "router"):
-                    prefix = f"/api/{module_name}".replace("_routes", "")
+                    prefix = f"/api/{module_name}".replace("_routes", "").rstrip("/")
                     tag = module_name.replace("_", " ").title()
                     app.include_router(module.router, prefix=prefix, tags=[tag])
                     logger.info(f"Router loaded: {module_name} -> {prefix}")
@@ -216,4 +213,13 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting server...")
-    uvicorn.run("server:app", host="localhost", port=8000, reload=True, log_level="info")
+    uvicorn.run(
+    "server:app", 
+    host="localhost", 
+    port=8000, 
+    reload=True,
+    reload_dirs=["./routes", "./models", "./utils"],
+    reload_excludes=["venv/**", "uploads/**", "**/__pycache__/**"],
+    log_level="info",
+)
+

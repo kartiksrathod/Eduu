@@ -47,16 +47,16 @@ export const papersAPI = {
   getAll: () => api.get('/api/papers'),
 
   create: (formData) =>
-    api.post('/api/papers', formData, {
+    api.post('/api/papers/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
   update: (id, formData) =>
-    api.put(`/api/papers/${id}`, formData, {
+    api.put(`/api/papers/${id}/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
-  delete: (id) => api.delete(`/api/papers/${id}`),
+  delete: (id) => api.delete(`/api/papers/${id}/`),
 
   download: async (id) => {
     const response = await fetch(`${API_BASE_URL}/api/papers/${id}/download`, {
@@ -89,16 +89,16 @@ export const notesAPI = {
   getAll: () => api.get('/api/notes'),
 
   create: (formData) =>
-    api.post('/api/notes', formData, {
+    api.post('/api/notes/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
   update: (id, formData) =>
-    api.put(`/api/notes/${id}`, formData, {
+    api.put(`/api/notes/${id}/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
-  delete: (id) => api.delete(`/api/notes/${id}`),
+  delete: (id) => api.delete(`/api/notes/${id}/`),
 
   download: async (id) => {
     const response = await fetch(`${API_BASE_URL}/api/notes/${id}/download`, {
@@ -131,16 +131,16 @@ export const syllabusAPI = {
   getAll: () => api.get('/api/syllabus'),
 
   create: (formData) =>
-    api.post('/api/syllabus', formData, {
+    api.post('/api/syllabus/', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
   update: (id, formData) =>
-    api.put(`/api/syllabus/${id}`, formData, {
+    api.put(`/api/syllabus/${id}/`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
 
-  delete: (id) => api.delete(`/api/syllabus/${id}`),
+  delete: (id) => api.delete(`/api/syllabus/${id}/`),
 
   download: async (id) => {
     const response = await fetch(
@@ -181,7 +181,7 @@ export const statsAPI = {
 // 👤 USER PROFILE (Fixed path)
 // ===============================
 export const profileAPI = {
-  get: () => api.get('/api/auth/profile'),  // Changed to /api/auth/profile to match backend
+  get: () => api.get('/api/auth/profile'),
   update: (profileData) => api.put('/api/auth/profile', profileData),
 
   uploadPhoto: (file) => {
@@ -195,7 +195,7 @@ export const profileAPI = {
   removePhoto: () => api.delete('/api/auth/profile/photo'),
   updatePassword: (passwordData) =>
     api.put('/api/auth/profile/password', passwordData),
-  getPhoto: (userId) => `${API_BASE_URL}/api/auth/profile/photo/${userId}`,
+
   getStats: () => api.get('/api/auth/profile/stats'),
 };
 

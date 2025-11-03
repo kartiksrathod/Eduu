@@ -19,6 +19,7 @@ import SmartSearchBar from './SmartSearchBar';
 import ProfileAvatar from './ProfileAvatar';
 import NotificationCenter from './NotificationCenter';
 import { BookOpen, User, LogOut, Menu, X, Shield } from 'lucide-react';
+const API_BASE_URL = "http://localhost:8001";
 
 const Navbar = () => {
   const { currentUser, isAdmin, logout } = useAuth();
@@ -88,10 +89,11 @@ const Navbar = () => {
                   <Button data-testid="user-menu-btn" variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
                       {currentUser.profile_photo && (
-                        <AvatarImage 
-                          src={profileAPI.getPhoto(currentUser.id)} 
-                          alt={currentUser.name}
-                        />
+                       <AvatarImage
+                             src={currentUser.profile_photo ? `${API_BASE_URL}${currentUser.profile_photo}` : undefined}
+                            alt={currentUser.name}
+                      />
+
                       )}
                       <AvatarFallback className="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300">
                         {currentUser.name?.charAt(0) || 'U'}
